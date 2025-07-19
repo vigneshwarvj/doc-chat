@@ -1,10 +1,8 @@
 streamlit
-streamlit-chat
-python-dotenv
-PyPDF2
-python-docx
 langchain
 langchain-community
-transformers
-torch
-sentence-transformers
+langchain-core
+langchain-text-splitters
+langchain-ollama
+pdfplumber
+pypdf2
