@@ -1,10 +1,10 @@
-python-dotenv
 streamlit
-streamlit_ace
+streamlit-chat
+python-dotenv
 PyPDF2
-streamlit_chat
+python-docx
 langchain
 langchain-community
-openai
-faiss-cpu
-tiktoken
+transformers
+torch
+sentence-transformers
