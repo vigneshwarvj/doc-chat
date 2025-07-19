@@ -7,7 +7,7 @@ import textwrap
 
 
 def get_pdf_pages(pdf_file):
-    loader = PyPDFLoader("paper.pdf")
+    loader = PyPDFLoader(pdf_file)
     pages = loader.load_and_split()
 
     return pages
