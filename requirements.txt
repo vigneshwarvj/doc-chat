@@ -4,6 +4,7 @@ streamlit_ace
 PyPDF2
 streamlit_chat
 langchain
+langchain-community
 openai
 faiss-cpu
 tiktoken
