@@ -1,7 +1,0 @@
-streamlit
-langchain
-sentence-transformers
-faiss-cpu
-pdfplumber
-transformers
-torch
