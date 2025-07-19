@@ -67,9 +67,14 @@ def handle_user_question(user_question):
     # Update the chat history with the user's new question
     st.session_state.chat_history.append({"role": "user", "content":  user_question})
     
-    response = st.session_state.conversation({
-        "question": user_question
+    # response = st.session_state.conversation({
+    #     "question": user_question
+    # })
+
+    response = st.session_state.conversation.invoke({
+    "question": user_question
     })
+
     
     # incase to log the responses
     # st.write(response)
