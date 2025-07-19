@@ -1,60 +1,44 @@
 import streamlit as st
-from utils import get_pdf_pages, get_chroma_vectors_db, \
-                get_question_answer_chain, process_llm_response, initialize_llm
+import tempfile
+from utils import (
+    get_pdf_pages,
+    get_chroma_vectors_db,
+    initialize_llm,
+    get_question_answer_chain,
+    process_llm_response,
+)
 
+st.set_page_config(page_title="PDF Chatbot with Llama2", layout="wide")
+st.title("📄🦙 Chat with your PDF using Llama2 + LangChain")
 
-def main():
-    st.set_page_config(page_title="PDF Chatbot")
-    st.title("PDF chatbot using llama2 LLM")
+uploaded_file = st.file_uploader("Upload a PDF file", type=["pdf"])
 
-    # PDF file upload
-    pdf_file = st.file_uploader("Upload a PDF file", type=["pdf"])
+if uploaded_file is not None:
+    with st.spinner("Processing your PDF..."):
+        # Save the uploaded PDF to a temporary file
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
+            tmp_file.write(uploaded_file.read())
+            tmp_path = tmp_file.name
 
-    if pdf_file:
+        # Load and split the PDF pages
+        pages = get_pdf_pages(tmp_path)
 
-        pages = get_pdf_pages(pdf_file)
-        b1 = st.button('Get embeddings and build chroma vectors db')
+        # Generate embeddings and build vector store
+        vector_db = get_chroma_vectors_db(pages)
 
-        if b1:
-            if "vector_db" not in st.session_state:
-                with st.status("Extracting embeddings and building chroma vectors db using llama2...", expanded=True) as status:
-                    st.write("Extracting content from the pdf...")
-                    pages = get_pdf_pages(pdf_file)
-                    st.write("Creating chroma db...")
-                    vector_db = get_chroma_vectors_db(pages)
-                    st.write("Initializing llama2 LLM...")
-                    llm = initialize_llm()
-                    st.write("Initializing langchain QA chain...")
-                    st.session_state['qa_chain'] = get_question_answer_chain(vector_db, llm)
-                    status.update(label="Complete!", state="complete", expanded=False)
+        # Load the Llama2 model via Ollama
+        llm = initialize_llm()
 
-        if "qa_chain" in st.session_state:
+        # Build the question-answer chain
+        qa_chain = get_question_answer_chain(vector_db, llm)
 
-            # Initialize chat history
-            if "messages" not in st.session_state:
-                st.session_state.messages = []
+        st.success("PDF processed! You can now ask questions about it.")
 
-            # Display chat messages from history on app rerun
-            for message in st.session_state.messages:
-                with st.chat_message(message["role"]):
-                    st.markdown(message["content"])
-
-            # React to user input
-            if prompt := st.chat_input("Any questions about the pdf?"):
-                # Display user message in chat message container
-                with st.chat_message("user"):
-                    st.markdown(prompt)
-                # Add user message to chat history
-                st.session_state.messages.append({"role": "user", "content": prompt})
-
-            llm_response = st.session_state['qa_chain'](prompt)
-            response = process_llm_response(llm_response)
-                
-            # Display assistant response in chat message container
-            with st.chat_message("assistant"):
-                st.markdown(response)
-            # Add assistant response to chat history
-            st.session_state.messages.append({"role": "assistant", "content": response})
-
-if __name__ == '__main__':
-    main()
+        # User input for questions
+        question = st.text_input("Ask a question about the PDF:")
+        if question:
+            with st.spinner("Generating answer..."):
+                response = qa_chain({"query": question})
+                answer = process_llm_response(response)
+                st.markdown("### 🧠 Answer:")
+                st.write(answer)
