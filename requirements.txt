@@ -1,7 +1,9 @@
 streamlit
-langchain_core
-langchain_community
-langchain_ollama
-pdfplumber
-pytest
 langchain
+langchain-community
+langchain-core
+langchain-text-splitters
+langchain-ollama
+sentence-transformers
+chromadb
+pdfplumber
