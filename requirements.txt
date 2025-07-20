@@ -7,3 +7,7 @@ langchain-ollama
 sentence-transformers
 chromadb
 pdfplumber
+tqdm
+scikit-learn
+numpy
+torch
