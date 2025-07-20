@@ -1,5 +1,5 @@
 import streamlit as st
-import PyMuPDF  # for PDF processing
+import fitz  # for PDF processing
 import docx2txt
 import faiss
 import numpy as np
@@ -20,7 +20,7 @@ def load_models():
 
 # Document processing functions
 def extract_text_from_pdf(file_path):
-    doc = PyMuPDF.open(file_path)
+    doc = fitz.open(file_path)
     text = ""
     for page in doc:
         text += page.get_text()
