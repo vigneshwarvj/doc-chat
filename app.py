@@ -2,12 +2,14 @@ import os
 import streamlit as st
 from langchain_community.document_loaders import PDFPlumberLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_core.vectorstores import InMemoryVectorStore
-from langchain_ollama import OllamaEmbeddings
+from langchain.vectorstores import Chroma
+from langchain.embeddings import HuggingFaceEmbeddings
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_ollama.llms import OllamaLLM
+import tempfile
 
-LLM = "deepseek-r1:8b"
+# LLM model to use with Ollama
+LLM = "deepseek-coder:6.7b-instruct-q4_K_M"
 
 # Prompt template for answering questions
 template = """
@@ -17,22 +19,22 @@ Context: {context}
 Answer:
 """
 
-# Directory to save uploaded PDFs
+# Temp directory for PDFs
 pdfs_directory = "chat-with-pdf/pdfs/"
-
-# Ensure the directory exists
 os.makedirs(pdfs_directory, exist_ok=True)
 
-# Initialize embeddings and model
-embeddings = OllamaEmbeddings(model=LLM)
+# Load HuggingFace embeddings
+embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+
+# Initialize Ollama LLM
 model = OllamaLLM(model=LLM)
 
-# Initialize vector store
+# Vector store (global so it's reusable after upload)
 vector_store = None
 
 
 def upload_pdf(file):
-    """Save the uploaded PDF to the specified directory."""
+    """Save the uploaded PDF to a temporary file."""
     try:
         file_path = os.path.join(pdfs_directory, file.name)
         with open(file_path, "wb") as f:
@@ -44,7 +46,7 @@ def upload_pdf(file):
 
 
 def load_pdf(file_path):
-    """Load the content of the PDF using PDFPlumberLoader."""
+    """Load and return documents from the PDF."""
     try:
         loader = PDFPlumberLoader(file_path)
         return loader.load()
@@ -54,7 +56,7 @@ def load_pdf(file_path):
 
 
 def split_text(documents):
-    """Split the documents into smaller chunks for indexing."""
+    """Split large PDF text into smaller chunks."""
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=1000, chunk_overlap=200, add_start_index=True
     )
@@ -62,56 +64,50 @@ def split_text(documents):
 
 
 def index_docs(documents):
-    """Index the documents in the vector store."""
+    """Index documents in a Chroma vector store."""
     global vector_store
-    vector_store = InMemoryVectorStore(embeddings)
-    vector_store.add_documents(documents)
+    vector_store = Chroma.from_documents(documents, embeddings)
 
 
 def retrieve_docs(query):
-    """Retrieve relevant documents based on the query."""
+    """Retrieve similar documents based on a question."""
     return vector_store.similarity_search(query)
 
 
 def answer_question(question, documents):
-    """Generate an answer to the question using the retrieved documents."""
+    """Generate an answer using context and the LLM."""
     context = "\n\n".join([doc.page_content for doc in documents])
     prompt = ChatPromptTemplate.from_template(template)
     chain = prompt | model
     return chain.invoke({"question": question, "context": context})
 
 
-# Streamlit UI
-st.title("Chat with Your PDF")
-uploaded_file = st.file_uploader(
-    "Upload a PDF file to get started", type="pdf", accept_multiple_files=False
-)
+# ---------------------- Streamlit UI ---------------------- #
+st.set_page_config(page_title="Chat with Your PDF")
+st.title("📄 Chat with Your PDF using LLM + Local Embeddings")
+
+uploaded_file = st.file_uploader("Upload a PDF", type="pdf")
 
 if uploaded_file:
-    # Save the uploaded PDF
     file_path = upload_pdf(uploaded_file)
 
     if file_path:
-        st.success(f"File uploaded successfully: {uploaded_file.name}")
+        st.success(f"File uploaded: {uploaded_file.name}")
 
-        # Load and process the PDF
         with st.spinner("Processing PDF..."):
             documents = load_pdf(file_path)
             if documents:
-                chunked_documents = split_text(documents)
-                index_docs(chunked_documents)
-                st.success("PDF indexed successfully! Ask your questions below.")
+                chunks = split_text(documents)
+                index_docs(chunks)
+                st.success("PDF processed and indexed! Ask questions below.")
 
-        # Chat input
-        question = st.chat_input("Ask a question about the uploaded PDF:")
-
+        question = st.chat_input("Ask a question about the PDF:")
         if question:
             st.chat_message("user").write(question)
-
-            with st.spinner("Retrieving relevant information..."):
-                related_documents = retrieve_docs(question)
-                if related_documents:
-                    answer = answer_question(question, related_documents)
+            with st.spinner("Searching for answer..."):
+                results = retrieve_docs(question)
+                if results:
+                    answer = answer_question(question, results)
                     st.chat_message("assistant").write(answer)
                 else:
                     st.chat_message("assistant").write("No relevant information found.")
